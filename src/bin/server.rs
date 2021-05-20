@@ -103,8 +103,8 @@ fn serve_messages(rx: mpsc::Receiver<Message>, users: UsersList) -> anyhow::Resu
                 for (uid, user) in users.iter_mut() {
                     if *uid != nick {
                         user.write_fmt(format_args!(
-                            "User {} connected from ip: {}!\n",
-                            nick, addr
+                            "User {} connected!\n",
+                            nick
                         ))?;
                     }
                 }

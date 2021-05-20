@@ -37,8 +37,7 @@ fn main() -> anyhow::Result<()> {
     loop {
         if let Ok(msg) = stdin_channel.try_recv() {
             match msg.as_str() {
-                "exit\n" => {
-                    stream.write_all(b"disconnect\n")?;
+                "/exit\n" | "/quit\n" => {
                     println!("\nDisconnected!");
                     break;
                 }

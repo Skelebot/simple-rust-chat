@@ -15,3 +15,10 @@ A simple text chat server and client written in rust in under 300 lines of code,
  - connects to a server and transmits the requested nickname
  - sends lines read from stdin to the server
  - prints lines received from the server to stdout
+
+ ## Running in Docker
+ Install docker and run:
+ ```
+ docker build -t rust-chat .
+ docker container run -p 4000:4000 --name rust-chat rust-chat 0.0.0.0:4000 server_name
+ ```
