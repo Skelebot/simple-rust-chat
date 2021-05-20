@@ -1,8 +1,9 @@
 use std::{
-    io::prelude::*,
-    sync::{Arc, Mutex, mpsc},
     collections::HashMap,
-    io, net,
+    io,
+    io::prelude::*,
+    net,
+    sync::{mpsc, Arc, Mutex},
 };
 
 const ERR: u8 = 0xff;
@@ -29,8 +30,8 @@ fn main() -> anyhow::Result<()> {
         let (mut stream, addr) = listener.accept()?;
 
         // Send server name
-        stream.write(srv_name.as_bytes())?;
-        stream.write(b"\n")?;
+        stream.write_all(srv_name.as_bytes())?;
+        stream.write_all(b"\n")?;
 
         // Receive the client's nickname
         let nickname = {
@@ -46,13 +47,13 @@ fn main() -> anyhow::Result<()> {
         {
             let mut users = users.lock().unwrap();
             if users.contains_key(&*nickname) {
-                stream.write(&[ERR])?;
-                stream.write(b"Nickname already taken!\n")?;
+                stream.write_all(&[ERR])?;
+                stream.write_all(b"Nickname already taken!\n")?;
             } else {
-                stream.write(&[OK])?;
+                stream.write_all(&[OK])?;
                 users.insert(nickname.clone(), stream.try_clone().unwrap());
                 tx.send(Message::Connect(nickname.clone(), addr))?;
-                std::thread::spawn(move || handle_client(stream, tx, nickname.clone()));
+                std::thread::spawn(move || handle_client(stream, tx, nickname));
             }
         }
     }
@@ -75,8 +76,8 @@ fn handle_client(
     loop {
         let mut msg = String::new();
         if reader.read_line(&mut msg)? == 0 {
-            tx.send(Message::Disconnect(nick.clone()))?;
-            return Ok(())
+            tx.send(Message::Disconnect(nick))?;
+            return Ok(());
         }
         match msg.as_str() {
             "disconnect\n" => break,
@@ -87,7 +88,7 @@ fn handle_client(
         }
     }
 
-    tx.send(Message::Disconnect(nick.clone()))?;
+    tx.send(Message::Disconnect(nick))?;
     std::io::stdout().flush().unwrap();
     Ok(())
 }
@@ -101,7 +102,10 @@ fn serve_messages(rx: mpsc::Receiver<Message>, users: UsersList) -> anyhow::Resu
                 println!("User {} connected from ip: {}!", nick, addr);
                 for (uid, user) in users.iter_mut() {
                     if *uid != nick {
-                        user.write_fmt(format_args!("User {} connected from ip: {}!\n", nick, addr))?;
+                        user.write_fmt(format_args!(
+                            "User {} connected from ip: {}!\n",
+                            nick, addr
+                        ))?;
                     }
                 }
             }
@@ -122,9 +126,7 @@ fn serve_messages(rx: mpsc::Receiver<Message>, users: UsersList) -> anyhow::Resu
                 print!("{}: {}", nick, text);
                 for (uid, user) in users.iter_mut() {
                     if *uid != nick {
-                        user.write_fmt(
-                            format_args!("{}: {}", nick, text)
-                        )?;
+                        user.write_fmt(format_args!("{}: {}", nick, text))?;
                     }
                 }
             }

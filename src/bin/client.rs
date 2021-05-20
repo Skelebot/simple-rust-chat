@@ -1,6 +1,6 @@
-use std::{io::prelude::*, sync::mpsc::TryRecvError};
 use std::net;
 use std::{io, sync::mpsc, thread};
+use std::{io::prelude::*, sync::mpsc::TryRecvError};
 
 const ERR: u8 = 0xFF;
 const _OK: u8 = 0x01;
@@ -19,33 +19,31 @@ fn main() -> anyhow::Result<()> {
     std::io::stdout().flush()?;
 
     // Write our nickname
-    stream.write(nickname.as_bytes())?;
-    stream.write(b"\n")?;
+    stream.write_all(nickname.as_bytes())?;
+    stream.write_all(b"\n")?;
 
     // Check for errors
     let mut buf = [0; 1];
-    if stream.read(&mut buf)? == 1 {
-        if buf[0] == ERR {
-            let mut msg = String::new();
-            reader.read_line(&mut msg)?;
-            println!(" Server Error: {}", msg);
-            return Err(anyhow::anyhow!("Server returned an error"))
-        }
+    if stream.read(&mut buf)? == 1 && buf[0] == ERR {
+        let mut msg = String::new();
+        reader.read_line(&mut msg)?;
+        println!(" Server Error: {}", msg);
+        return Err(anyhow::anyhow!("Server returned an error"));
     }
 
     let stdin_channel = spawn_stdin_channel();
     let stream_channel = spawn_stream_channel(stream.try_clone()?);
 
     loop {
-        if let Some(msg) = stdin_channel.try_recv().ok() {
+        if let Ok(msg) = stdin_channel.try_recv() {
             match msg.as_str() {
                 "exit\n" => {
-                    stream.write(b"disconnect\n")?;
+                    stream.write_all(b"disconnect\n")?;
                     println!("\nDisconnected!");
                     break;
                 }
                 s => {
-                    stream.write(s.as_bytes())?;
+                    stream.write_all(s.as_bytes())?;
                     print!("> ");
                     std::io::stdout().flush()?;
                 }
@@ -58,7 +56,7 @@ fn main() -> anyhow::Result<()> {
                     print!("\r< {}> ", s);
                     std::io::stdout().flush()?;
                 }
-            }
+            },
             Err(TryRecvError::Disconnected) => {
                 println!("\nServer disconnected.");
                 break;
